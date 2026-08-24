@@ -28,12 +28,21 @@ void BASEMOD_CALL OnSave(
     SettingsManager::GetInstance().Serialize(settingsPath);
 }
 
+inline bool IsNetplayMatch(BaseMod::Api* api) {
+    return api->GameData.GetMainMenuSelection() == ggxxacpr::MenuItem::ONLINE &&
+        (api->GameData.GetGameModeFeatureFlags() & ggxxacpr::GameModeFeatureFlags::VERSUS) !=
+            ggxxacpr::GameModeFeatureFlags::NONE;
+}
+
 void BASEMOD_CALL BeforeUpdate(
     CustomContext* uCtx,
     const BaseMod::HookContext* ctx,
     const BaseMod::GameUpdateInfo* info
 ) {
-    if (uCtx->bmApi->GameData.IsInGame() && !uCtx->bmApi->GameData.GetPauseState()) {
+    if (uCtx->bmApi->GameData.IsInGame() &&
+        !uCtx->bmApi->GameData.GetPauseState() &&
+        !IsNetplayMatch(uCtx->bmApi)
+    ) {
         auto& store = GameStateStore::GetInstance();
         auto P1 = uCtx->bmApi->GameData.GetPlayer(0);
         auto P2 = uCtx->bmApi->GameData.GetPlayer(1);
@@ -49,14 +58,20 @@ void BASEMOD_CALL AfterUpdate(
 ) {
     try {
         static FrameMeter frameMeter;
+        auto api = uCtx->bmApi;
         
-        if (uCtx->bmApi->GameData.IsInGame()) {
-            if (!uCtx->bmApi->GameData.GetPauseState()) {
-                frameMeter.Update(uCtx->bmApi, GameStateStore::GetInstance());
+        if (api->GameData.IsInGame()) {
+            // Disabled during netplay
+            if (IsNetplayMatch(api)) return;
+
+            if (!api->GameData.GetPauseState()) {
+                frameMeter.Update(api, GameStateStore::GetInstance());
             }
             
-            Draw(frameMeter, uCtx->bmApi);
-            // DrawSpriteTest(uCtx->bmApi);
+            Draw(frameMeter, api);
+            DrawUntechGauge(api);
+            DrawHitStunDecayGauge(api);
+            DrawStunGauge(api);
         } else {
             frameMeter = FrameMeter();
         }

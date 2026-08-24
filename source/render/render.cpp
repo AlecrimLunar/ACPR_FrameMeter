@@ -274,9 +274,192 @@ void Draw(FrameMeter& frameMeter, BaseMod::Api* bmApi) {
     if (SettingsManager::GetInstance().Display)
         DrawFrameMeter(frameMeter, bmApi);
 
-    // Draw HSD gauges
-    // Draw stun gauge
-
     if (SettingsManager::GetInstance().DisplayGaugeNumbers)
         DrawGaugeNumbers(bmApi);
+}
+
+void DrawHitStunDecayGaugePerPlayer(ggxxacpr::Player player, BaseMod::Api* bmApi) {
+    constexpr int screenWidth = 640;
+    constexpr int baseX = 20;
+    constexpr int y = 170;
+    // constexpr int baseX = 107;
+    // constexpr int y = 95;
+    constexpr int height = 9;
+    constexpr int width = 60;
+    constexpr int borderSize = 1;
+    constexpr int meterLengthFrames = 60;
+
+    constexpr int maxDecayLvl = 5;
+    uint32_t lvlColors[6] = {0xFF0000FF, 0xFF00FF00, 0xFFFFFF00, 0xFFFF8000, 0xFFFF0000, 0xFF800000};
+    uint32_t lvlThresholds[6] {0, 180, 300, 420, 600, 860};
+
+    auto native = bmApi->NativeFunctions;
+
+    int pIndex = player.playerIndex();
+    int x = pIndex ? baseX : screenWidth - baseX - width;
+    // int z = SettingsManager::GetInstance().zPos;
+    int z = 280;
+
+    int comboTime = player.comboTime();
+    int decayLvl = 0;
+    for (int i = 0; i <= maxDecayLvl; i++) {
+        if (comboTime < lvlThresholds[i]) {
+            break;
+        }
+        decayLvl = i;
+    }
+    
+    // Draw bg
+    uint32_t bgColor = comboTime > 0 ?
+        lvlColors[std::min(decayLvl + 1, maxDecayLvl)] :
+        lvlColors[0];
+    native.DrawQuad(x, y, x + width, y + height, z, bgColor);
+    // Draw edges
+    uint32_t color = lvlColors[decayLvl];
+    native.DrawQuad(x,                      y, x + borderSize, y + height, z, color);
+    native.DrawQuad(x + width - borderSize, y, x + width,      y + height, z, color);
+    native.DrawQuad(x, y,                       x + width, y + borderSize, z, color);
+    native.DrawQuad(x, y + height - borderSize, x + width, y + height,     z, color);
+
+    // Draw fill
+    if (player.comboTime() > 0) {
+        int lvlStart = lvlThresholds[decayLvl];
+        int lvlEnd = lvlThresholds[std::min(decayLvl + 1, maxDecayLvl)];
+        int lvlSize = lvlEnd - lvlStart;
+        if (lvlSize) {
+            int fillLength = (lvlSize - player.comboTime() + lvlStart) * width / lvlSize;
+            native.DrawQuad(x, y, x + fillLength, y + height, z, color);
+            // std::string debugStr =
+            //     std::to_string(fillLength) + " = " + std::to_string(lvlSize) + " - " +
+            //     std::to_string(player.comboTime()) + " + " + std::to_string(lvlStart);
+            // native.RenderCockpitFontText(debugStr, x, 200, z, 0xFF, 1.0f);
+        }
+        // Gauge Text
+        if (SettingsManager::GetInstance().DisplayGaugeNumbers) {
+            constexpr int gaugeTextXOffset = 1;
+            constexpr int gaugeTextYOffset = 1;
+            int timeLeft = std::max(0, (lvlSize - player.comboTime() + lvlStart));
+            DrawRunSumText(bmApi, std::to_string(timeLeft), x + gaugeTextXOffset, y + gaugeTextYOffset, z, 1.0f, 1.0f, false, Font::BLACK_BORDERED);
+        }
+    }
+
+    // Draw label text
+    constexpr int textYOffset = height + 1;
+    DrawRunSumText(bmApi, "DECAY LVL: " + std::to_string(decayLvl), x, y + textYOffset, z, 1.0f, 1.0f, false, Font::BLACK_BORDERED);
+}
+void DrawHitStunDecayGauge(BaseMod::Api* bmApi) {
+    auto p1 = bmApi->GameData.GetPlayer(0);
+    auto p2 = bmApi->GameData.GetPlayer(1);
+
+    if (p1.isValid()) DrawHitStunDecayGaugePerPlayer(p1, bmApi);
+    if (p2.isValid()) DrawHitStunDecayGaugePerPlayer(p2, bmApi);
+}
+void DrawUntechGaugePerPlayer(ggxxacpr::Player player, BaseMod::Api* bmApi) {
+    constexpr int screenWidth = 640;
+    constexpr int baseX = 20;
+    constexpr int y = 160;
+    // constexpr int baseX = 107;
+    // constexpr int y = 85;
+    constexpr int height = 9;
+    constexpr int width = 60;
+    constexpr int borderSize = 1;
+    constexpr int meterLengthFrames = 60;
+    constexpr uint32_t color = 0xFF00FFFF;
+
+    auto native = bmApi->NativeFunctions;
+
+    int pIndex = player.playerIndex();
+    int x = pIndex ? baseX : screenWidth - baseX - width;
+    // int z = SettingsManager::GetInstance().zPos;
+    int z = 280;
+
+    // Draw bg
+    native.DrawQuad(x, y, x + width, y + height, z, color & 0x33FFFFFF);
+    
+    // Draw fill
+    if (player.untechTimer() >= 0) {
+        int fillLength = player.untechTimer() * width / meterLengthFrames;
+        native.DrawQuad(x, y, x + fillLength, y + height, z, color);
+
+        // Gauge Text
+        if (SettingsManager::GetInstance().DisplayGaugeNumbers) {
+            constexpr int gaugeTextXOffset = 1;
+            constexpr int gaugeTextYOffset = 1;
+            DrawRunSumText(bmApi, std::to_string(player.untechTimer()), x + gaugeTextXOffset, y + gaugeTextYOffset, z, 1.0f, 1.0f, false, Font::BLACK_BORDERED);
+        }
+    }
+
+    // Draw edges
+    native.DrawQuad(x,                      y, x + borderSize, y + height, z, color);
+    native.DrawQuad(x + width - borderSize, y, x + width,      y + height, z, color);
+    native.DrawQuad(x, y,                       x + width, y + borderSize, z, color);
+    native.DrawQuad(x, y + height - borderSize, x + width, y + height,     z, color);
+
+    // Draw label text
+    constexpr int textYOffset = -8;
+    DrawRunSumText(bmApi, "UNTECH", x, y + textYOffset, z, 1.0f, 1.0f, false, Font::BLACK_BORDERED);
+}
+void DrawUntechGauge(BaseMod::Api* bmApi) {
+    auto p1 = bmApi->GameData.GetPlayer(0);
+    auto p2 = bmApi->GameData.GetPlayer(1);
+
+    if (p1.isValid()) DrawUntechGaugePerPlayer(p1, bmApi);
+    if (p2.isValid()) DrawUntechGaugePerPlayer(p2, bmApi);
+}
+void DrawStunGaugePerPlayer(ggxxacpr::Player player, BaseMod::Api* bmApi) {
+    constexpr int screenWidth = 640;
+    constexpr int baseX = 215;
+    constexpr int y = 84;
+    constexpr int height = 6;
+    constexpr int width = 38;
+    constexpr int borderSize = 1;
+    constexpr uint32_t color = 0xFF8D918D;
+    constexpr uint32_t borderColor = 0xFF000000;
+
+    auto native = bmApi->NativeFunctions;
+
+    int pIndex = player.playerIndex();
+    int x = pIndex ? screenWidth - baseX - width : baseX;
+    // int z = SettingsManager::GetInstance().zPos;
+    int z = 280;
+
+    // Draw bg
+    native.DrawQuad(x, y, x + width, y + height, z, borderColor & 0x33FFFFFF);
+    // Draw fill
+    if (player.dizzyThreshold()) {
+        int fillLength = player.dizzyBuildup() / 100 * width / player.dizzyThreshold();
+        if (pIndex) {
+            native.DrawQuad(x, y, x + fillLength, y + height, z, color);
+        } else {
+            native.DrawQuad(x + width - fillLength, y, x + width, y + height, z, color);
+        }
+    }
+    // Draw edges
+    native.DrawQuad(x,                      y, x + borderSize, y + height, z, borderColor);
+    native.DrawQuad(x + width - borderSize, y, x + width,      y + height, z, borderColor);
+    native.DrawQuad(x, y,                       x + width, y + borderSize, z, borderColor);
+    native.DrawQuad(x, y + height - borderSize, x + width, y + height,     z, borderColor);
+
+    // Gauge Text
+    if (SettingsManager::GetInstance().DisplayGaugeNumbers) {
+        constexpr int gaugeTextXOffset = 1;
+        constexpr int gaugeTextYOffset = height + 1;
+        std::string gaugeString = std::to_string(player.dizzyBuildup() / 100) + "/" + std::to_string(player.dizzyThreshold());
+        if (pIndex) {
+            DrawRunSumText(bmApi, gaugeString, x + gaugeTextXOffset, y + gaugeTextYOffset, z, 1.0f, 1.0f, false, Font::BLACK_BORDERED);
+        } else {
+            DrawRunSumText(bmApi, gaugeString, x + width - gaugeTextXOffset, y + gaugeTextYOffset, z, 1.0f, 1.0f, true, Font::BLACK_BORDERED);
+        }
+    }
+
+    // Draw label text
+    // constexpr int textYOffset = -8;
+    // DrawRunSumText(bmApi, "STUN", x, y + textYOffset, z, 1.0f, 1.0f, false, Font::BLACK_BORDERED);
+}
+void DrawStunGauge(BaseMod::Api* bmApi) {
+    auto p1 = bmApi->GameData.GetPlayer(0);
+    auto p2 = bmApi->GameData.GetPlayer(1);
+
+    if (p1.isValid()) DrawStunGaugePerPlayer(p1, bmApi);
+    if (p2.isValid()) DrawStunGaugePerPlayer(p2, bmApi);
 }

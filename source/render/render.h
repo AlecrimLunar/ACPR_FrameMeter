@@ -17,3 +17,7 @@ void DrawRunSumText(BaseMod::Api* bmApi, std::string text,
     float alpha, float size,
     bool rightAligned, Font font);
 void LoadGlyphAtlasResources();
+
+void DrawHitStunDecayGauge(BaseMod::Api* bmApi);
+void DrawUntechGauge(BaseMod::Api* bmApi);
+void DrawStunGauge(BaseMod::Api* bmApi);
