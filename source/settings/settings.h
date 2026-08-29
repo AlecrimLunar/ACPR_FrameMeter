@@ -9,7 +9,7 @@
 #include <type_traits>
 #include "frameMeter/frameMeter.h"
 
-constexpr int _serializationVersion = 1;
+constexpr int _serializationVersion = 2;
 
 class FrameMeterPalette {
     public:
@@ -69,6 +69,8 @@ class SettingsManager {
 
     public:
     int32_t Display = true;
+    int32_t DisplayUntechGauges = true;
+    int32_t DisplayDizzyGauge = true;
     int32_t DisplayGaugeNumbers = true;
     int32_t DisplayRunSums = true;
     int32_t RecordHitstop = false;
@@ -84,7 +86,7 @@ class SettingsManager {
         *this = SettingsManager();
     }
 
-    void VisitFields(auto lambda) {
+    void VisitFieldsV1(auto lambda) {
         lambda(Display);
         lambda(DisplayGaugeNumbers);
         lambda(RecordHitstop);
@@ -95,6 +97,12 @@ class SettingsManager {
         lambda(zPos);
         lambda(Opacity);
         lambda(Palette);
+    }
+
+    void VisitFields(auto lambda) {
+        VisitFieldsV1(lambda);
+        lambda(DisplayUntechGauges);
+        lambda(DisplayDizzyGauge);
     }
 
     void Serialize(const std::string filename) {
@@ -134,11 +142,13 @@ class SettingsManager {
 
         int serializedVersion;
         load(serializedVersion);
-        if (serializedVersion != _serializationVersion) {
+        if (serializedVersion == _serializationVersion) {
+            VisitFields(load);
+        } else if (serializedVersion == 1) {
+            VisitFieldsV1(load);
+        } else {
             std::cerr << "[FrameMeter] Serialized settings are not a supported version! They will be ignored" << std::endl;
-            return;
         }
-        VisitFields(load);
     }
 
     protected:

@@ -24,6 +24,7 @@ add_library(framemeter SHARED
     source/render/render.cpp
     source/render/text.cpp
     source/settings/modMenu.cpp
+    source/frameStep/frameStep.cpp
 )
 target_include_directories(framemeter PRIVATE
     include

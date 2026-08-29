@@ -328,26 +328,36 @@ void DrawHitStunDecayGaugePerPlayer(ggxxacpr::Player player, BaseMod::Api* bmApi
         int lvlSize = lvlEnd - lvlStart;
         if (lvlSize) {
             int fillLength = (lvlSize - player.comboTime() + lvlStart) * width / lvlSize;
-            native.DrawQuad(x, y, x + fillLength, y + height, z, color);
-            // std::string debugStr =
-            //     std::to_string(fillLength) + " = " + std::to_string(lvlSize) + " - " +
-            //     std::to_string(player.comboTime()) + " + " + std::to_string(lvlStart);
-            // native.RenderCockpitFontText(debugStr, x, 200, z, 0xFF, 1.0f);
+            if (pIndex) {
+                native.DrawQuad(x, y, x + fillLength, y + height, z, color);
+            } else {
+                native.DrawQuad(x + width - fillLength, y, x + width, y + height, z, color);
+            }
         }
         // Gauge Text
         if (SettingsManager::GetInstance().DisplayGaugeNumbers) {
             constexpr int gaugeTextXOffset = 1;
             constexpr int gaugeTextYOffset = 1;
             int timeLeft = std::max(0, (lvlSize - player.comboTime() + lvlStart));
-            DrawRunSumText(bmApi, std::to_string(timeLeft), x + gaugeTextXOffset, y + gaugeTextYOffset, z, 1.0f, 1.0f, false, Font::BLACK_BORDERED);
+            if (pIndex) {
+                DrawRunSumText(bmApi, std::to_string(timeLeft), x + gaugeTextXOffset, y + gaugeTextYOffset, z, 1.0f, 1.0f, false, Font::BLACK_BORDERED);
+            } else {
+                DrawRunSumText(bmApi, std::to_string(timeLeft), x + width - gaugeTextXOffset, y + gaugeTextYOffset, z, 1.0f, 1.0f, true, Font::BLACK_BORDERED);
+            }
         }
     }
 
     // Draw label text
     constexpr int textYOffset = height + 1;
-    DrawRunSumText(bmApi, "DECAY LVL: " + std::to_string(decayLvl), x, y + textYOffset, z, 1.0f, 1.0f, false, Font::BLACK_BORDERED);
+    if (pIndex) {
+        DrawRunSumText(bmApi, "DECAY LVL: " + std::to_string(decayLvl), x, y + textYOffset, z, 1.0f, 1.0f, false, Font::BLACK_BORDERED);
+    } else {
+        DrawRunSumText(bmApi, "DECAY LVL: " + std::to_string(decayLvl), x + width, y + textYOffset, z, 1.0f, 1.0f, true, Font::BLACK_BORDERED);
+    }
 }
 void DrawHitStunDecayGauge(BaseMod::Api* bmApi) {
+    if (!SettingsManager::GetInstance().DisplayUntechGauges) return;
+
     auto p1 = bmApi->GameData.GetPlayer(0);
     auto p2 = bmApi->GameData.GetPlayer(1);
 
@@ -379,13 +389,21 @@ void DrawUntechGaugePerPlayer(ggxxacpr::Player player, BaseMod::Api* bmApi) {
     // Draw fill
     if (player.untechTimer() >= 0) {
         int fillLength = player.untechTimer() * width / meterLengthFrames;
-        native.DrawQuad(x, y, x + fillLength, y + height, z, color);
+        if (pIndex) {
+            native.DrawQuad(x, y, x + fillLength, y + height, z, color);
+        } else {
+            native.DrawQuad(x + width - fillLength, y, x + width, y + height, z, color);
+        }
 
         // Gauge Text
         if (SettingsManager::GetInstance().DisplayGaugeNumbers) {
             constexpr int gaugeTextXOffset = 1;
             constexpr int gaugeTextYOffset = 1;
-            DrawRunSumText(bmApi, std::to_string(player.untechTimer()), x + gaugeTextXOffset, y + gaugeTextYOffset, z, 1.0f, 1.0f, false, Font::BLACK_BORDERED);
+            if (pIndex) {
+                DrawRunSumText(bmApi, std::to_string(player.untechTimer()), x + gaugeTextXOffset, y + gaugeTextYOffset, z, 1.0f, 1.0f, false, Font::BLACK_BORDERED);
+            } else {
+                DrawRunSumText(bmApi, std::to_string(player.untechTimer()), x + width - gaugeTextXOffset, y + gaugeTextYOffset, z, 1.0f, 1.0f, true, Font::BLACK_BORDERED);
+            }
         }
     }
 
@@ -397,9 +415,15 @@ void DrawUntechGaugePerPlayer(ggxxacpr::Player player, BaseMod::Api* bmApi) {
 
     // Draw label text
     constexpr int textYOffset = -8;
-    DrawRunSumText(bmApi, "UNTECH", x, y + textYOffset, z, 1.0f, 1.0f, false, Font::BLACK_BORDERED);
+    if (pIndex) {
+        DrawRunSumText(bmApi, "UNTECH", x, y + textYOffset, z, 1.0f, 1.0f, false, Font::BLACK_BORDERED);
+    } else {
+        DrawRunSumText(bmApi, "UNTECH", x + width, y + textYOffset, z, 1.0f, 1.0f, true, Font::BLACK_BORDERED);
+    }
 }
 void DrawUntechGauge(BaseMod::Api* bmApi) {
+    if (!SettingsManager::GetInstance().DisplayUntechGauges) return;
+
     auto p1 = bmApi->GameData.GetPlayer(0);
     auto p2 = bmApi->GameData.GetPlayer(1);
 
@@ -457,6 +481,8 @@ void DrawStunGaugePerPlayer(ggxxacpr::Player player, BaseMod::Api* bmApi) {
     // DrawRunSumText(bmApi, "STUN", x, y + textYOffset, z, 1.0f, 1.0f, false, Font::BLACK_BORDERED);
 }
 void DrawStunGauge(BaseMod::Api* bmApi) {
+    if (!SettingsManager::GetInstance().DisplayDizzyGauge) return;
+
     auto p1 = bmApi->GameData.GetPlayer(0);
     auto p2 = bmApi->GameData.GetPlayer(1);
 

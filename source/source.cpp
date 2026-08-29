@@ -7,6 +7,7 @@
 #include "baseMod/baseMod.hpp"
 #include "frameMeter/frameMeter.h"
 #include "frameMeter/gameStateStore.h"
+#include "frameStep/frameStep.h"
 #include "hooks/hooks.h"
 #include "render/render.h"
 #include "settings/modMenu.h"
@@ -19,6 +20,7 @@ struct CustomContext {
     GearLoader::Api* glApi;
 };
 static CustomContext uCtx;
+static bool repause = false;    // Frame Step
 
 void BASEMOD_CALL OnSave(
     void* _unused,
@@ -39,15 +41,18 @@ void BASEMOD_CALL BeforeUpdate(
     const BaseMod::HookContext* ctx,
     const BaseMod::GameUpdateInfo* info
 ) {
-    if (uCtx->bmApi->GameData.IsInGame() &&
-        !uCtx->bmApi->GameData.GetPauseState() &&
-        !IsNetplayMatch(uCtx->bmApi)
-    ) {
-        auto& store = GameStateStore::GetInstance();
-        auto P1 = uCtx->bmApi->GameData.GetPlayer(0);
-        auto P2 = uCtx->bmApi->GameData.GetPlayer(1);
-        if (P1.isValid()) store.P1Hitstop = P1.hitstopTime();
-        if (P2.isValid()) store.P2Hitstop = P2.hitstopTime();
+    auto& gData = uCtx->bmApi->GameData;
+
+    if (gData.IsInGame() && !IsNetplayMatch(uCtx->bmApi)) {
+        HandleFrameStep_PreUpdate(uCtx->bmApi);
+
+        if (!gData.GetPauseState()) {
+            auto& store = GameStateStore::GetInstance();
+            auto P1 = gData.GetPlayer(0);
+            auto P2 = gData.GetPlayer(1);
+            if (P1.isValid()) store.P1Hitstop = P1.hitstopTime();
+            if (P2.isValid()) store.P2Hitstop = P2.hitstopTime();
+        }
     }
 }
 
@@ -67,7 +72,8 @@ void BASEMOD_CALL AfterUpdate(
             if (!api->GameData.GetPauseState()) {
                 frameMeter.Update(api, GameStateStore::GetInstance());
             }
-            
+
+            HandleFrameStep_PostUpdate(api);
             Draw(frameMeter, api);
             DrawUntechGauge(api);
             DrawHitStunDecayGauge(api);

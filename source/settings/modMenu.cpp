@@ -9,7 +9,7 @@ BASEMOD_CALL void Defaults() {
 }
 
 void RegisterModMenu(BaseMod::Api* bmApi) {
-    constexpr int numEntries = 10;
+    constexpr int numEntries = 12;
     auto& settings = SettingsManager::GetInstance();
 
     static const char* onOffLabels[2] = {"OFF", "ON"};
@@ -21,6 +21,8 @@ void RegisterModMenu(BaseMod::Api* bmApi) {
         {"RECORD HITSTOP", &settings.RecordHitstop, 0, 1, onOffLabels},
         {"RECORD SUPERFLASH", &settings.RecordSuperFlash, 0, 1, onOffLabels},
         {"IGNORE DISTANT PROJECTILES", &settings.IgnoreDistantProjectiles, 0, 1, onOffLabels},
+        {"DISPLAY UNTECH GAUGES", &settings.DisplayUntechGauges, 0, 1, onOffLabels},
+        {"DISPLAY DIZZY GAUGE", &settings.DisplayDizzyGauge, 0, 1, onOffLabels},
         {"DISPLAY GAUGE VALUES", &settings.DisplayGaugeNumbers, 0, 1, onOffLabels},
         {"DISPLAY FRAME RUN SUMS", &settings.DisplayRunSums, 0, 1, onOffLabels},
         {"DEFAULT", nullptr, 0, 0, nullptr, Defaults},
