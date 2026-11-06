@@ -13,8 +13,6 @@
 #include "settings/modMenu.h"
 #include "settings/settings.h"
 
-constexpr const char* settingsPath = "./mods/FrameMeter/settings.bin";
-
 struct CustomContext {
     BaseMod::Api* bmApi;
     GearLoader::Api* glApi;
@@ -31,9 +29,7 @@ void BASEMOD_CALL OnSave(
 }
 
 inline bool IsNetplayMatch(BaseMod::Api* api) {
-    return api->GameData.GetMainMenuSelection() == ggxxacpr::MenuItem::ONLINE &&
-        (api->GameData.GetGameModeFeatureFlags() & ggxxacpr::GameModeFeatureFlags::VERSUS) !=
-            ggxxacpr::GameModeFeatureFlags::NONE;
+    return GetActiveGameMode(api) == ActiveGameMode::ONLINE_MATCH;
 }
 
 void BASEMOD_CALL BeforeUpdate(
@@ -42,6 +38,11 @@ void BASEMOD_CALL BeforeUpdate(
     const BaseMod::GameUpdateInfo* info
 ) {
     auto& gData = uCtx->bmApi->GameData;
+    auto& settings = SettingsManager::GetInstance();
+    ActiveGameMode mode = GetActiveGameMode(uCtx->bmApi);
+
+    settings.SyncDisplayWithMode(mode);
+    UpdateModMenuForMode(mode);
 
     if (gData.IsInGame() && !IsNetplayMatch(uCtx->bmApi)) {
         HandleFrameStep_PreUpdate(uCtx->bmApi);
@@ -64,6 +65,11 @@ void BASEMOD_CALL AfterUpdate(
     try {
         static FrameMeter frameMeter;
         auto api = uCtx->bmApi;
+        auto& settings = SettingsManager::GetInstance();
+        ActiveGameMode mode = GetActiveGameMode(api);
+
+        settings.SyncDisplayWithMode(mode);
+        UpdateModMenuForMode(mode);
         
         if (api->GameData.IsInGame()) {
             // Disabled during netplay
@@ -74,10 +80,12 @@ void BASEMOD_CALL AfterUpdate(
             }
 
             HandleFrameStep_PostUpdate(api);
-            Draw(frameMeter, api);
-            DrawUntechGauge(api);
-            DrawHitStunDecayGauge(api);
-            DrawStunGauge(api);
+            if (settings.Display) {
+                Draw(frameMeter, api);
+                DrawUntechGauge(api);
+                DrawHitStunDecayGauge(api);
+                DrawStunGauge(api);
+            }
         } else {
             frameMeter = FrameMeter();
         }

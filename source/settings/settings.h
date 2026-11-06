@@ -7,9 +7,53 @@
 #include <iostream>
 #include <string>
 #include <type_traits>
+#include "baseMod/baseMod.hpp"
 #include "frameMeter/frameMeter.h"
 
-constexpr int _serializationVersion = 2;
+constexpr const char* settingsPath = "./mods/FrameMeter/settings.bin";
+constexpr int _serializationVersion = 3;
+
+enum class ActiveGameMode {
+    TRAINING,
+    ONLINE_TRAINING,
+    REPLAY,
+    VERSUS,
+    ARCADE,
+    ONLINE_MATCH,
+};
+
+inline ActiveGameMode GetActiveGameMode(BaseMod::Api* api) {
+    uint32_t rawMenu = static_cast<uint32_t>(api->GameData.GetMainMenuSelection());
+    auto menu = static_cast<ggxxacpr::MenuItem>(rawMenu & 0xFF);
+    auto flags = api->GameData.GetGameModeFeatureFlags();
+    bool isTrainingFlag = (flags & ggxxacpr::GameModeFeatureFlags::TRAINING) !=
+        ggxxacpr::GameModeFeatureFlags::NONE;
+
+    if (menu == ggxxacpr::MenuItem::ONLINE) {
+        if (isTrainingFlag) {
+            return ActiveGameMode::ONLINE_TRAINING;
+        }
+        return ActiveGameMode::ONLINE_MATCH;
+    }
+
+    if (menu == ggxxacpr::MenuItem::TRAINING || isTrainingFlag) {
+        return ActiveGameMode::TRAINING;
+    }
+
+    if (menu == ggxxacpr::MenuItem::REPLAY_THEATER ||
+        (flags & ggxxacpr::GameModeFeatureFlags::WATCH) != ggxxacpr::GameModeFeatureFlags::NONE) {
+        return ActiveGameMode::REPLAY;
+    }
+
+    if (menu == ggxxacpr::MenuItem::VERSUS ||
+        menu == ggxxacpr::MenuItem::VS_CPU ||
+        menu == ggxxacpr::MenuItem::TEAM_VERSUS ||
+        menu == ggxxacpr::MenuItem::TEAM_VS_CPU) {
+        return ActiveGameMode::VERSUS;
+    }
+
+    return ActiveGameMode::ARCADE;
+}
 
 class FrameMeterPalette {
     public:
@@ -69,6 +113,11 @@ class SettingsManager {
 
     public:
     int32_t Display = true;
+    int32_t DisplayTraining = true;
+    int32_t DisplayOnlineTraining = true;
+    int32_t DisplayReplay = true;
+    int32_t DisplayVersus = false;
+    int32_t DisplayArcade = false;
     int32_t DisplayUntechGauges = true;
     int32_t DisplayDizzyGauge = true;
     int32_t DisplayGaugeNumbers = true;
@@ -86,6 +135,58 @@ class SettingsManager {
         *this = SettingsManager();
     }
 
+    int32_t GetDisplayForMode(ActiveGameMode mode) const {
+        switch (mode) {
+            case ActiveGameMode::TRAINING:
+                return DisplayTraining;
+            case ActiveGameMode::ONLINE_TRAINING:
+                return DisplayOnlineTraining;
+            case ActiveGameMode::REPLAY:
+                return DisplayReplay;
+            case ActiveGameMode::VERSUS:
+                return DisplayVersus;
+            case ActiveGameMode::ARCADE:
+                return DisplayArcade;
+            case ActiveGameMode::ONLINE_MATCH:
+            default:
+                return false;
+        }
+    }
+
+    void SetDisplayForMode(ActiveGameMode mode, int32_t value) {
+        int32_t normalized = value ? 1 : 0;
+        switch (mode) {
+            case ActiveGameMode::TRAINING:
+                DisplayTraining = normalized;
+                Display = normalized;
+                break;
+            case ActiveGameMode::ONLINE_TRAINING:
+                DisplayOnlineTraining = normalized;
+                Display = normalized;
+                break;
+            case ActiveGameMode::REPLAY:
+                DisplayReplay = normalized;
+                Display = normalized;
+                break;
+            case ActiveGameMode::VERSUS:
+                DisplayVersus = normalized;
+                Display = normalized;
+                break;
+            case ActiveGameMode::ARCADE:
+                DisplayArcade = normalized;
+                Display = normalized;
+                break;
+            case ActiveGameMode::ONLINE_MATCH:
+            default:
+                Display = 0;
+                break;
+        }
+    }
+
+    void SyncDisplayWithMode(ActiveGameMode mode) {
+        Display = GetDisplayForMode(mode);
+    }
+
     void VisitFieldsV1(auto lambda) {
         lambda(Display);
         lambda(DisplayGaugeNumbers);
@@ -99,10 +200,19 @@ class SettingsManager {
         lambda(Palette);
     }
 
-    void VisitFields(auto lambda) {
+    void VisitFieldsV2(auto lambda) {
         VisitFieldsV1(lambda);
         lambda(DisplayUntechGauges);
         lambda(DisplayDizzyGauge);
+    }
+
+    void VisitFields(auto lambda) {
+        VisitFieldsV2(lambda);
+        lambda(DisplayTraining);
+        lambda(DisplayOnlineTraining);
+        lambda(DisplayReplay);
+        lambda(DisplayVersus);
+        lambda(DisplayArcade);
     }
 
     void Serialize(const std::string filename) {
@@ -144,6 +254,8 @@ class SettingsManager {
         load(serializedVersion);
         if (serializedVersion == _serializationVersion) {
             VisitFields(load);
+        } else if (serializedVersion == 2) {
+            VisitFieldsV2(load);
         } else if (serializedVersion == 1) {
             VisitFieldsV1(load);
         } else {
